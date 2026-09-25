@@ -11,7 +11,7 @@ Notify:Show({
     Title = "Crazy Title",
     Description = "Crazy Stuff",
     OnButton1 = function()
-    Delay = "Cray Dealay"
+    Delay = 0,
         print("WTF")
     end,
     OnButton2 = function() end,
@@ -28,7 +28,7 @@ Notify:Show({
     Description = "CRAZIER desc",
     Button1Text = "Crazy Stuff 1",
     Button2Text = "Craxy Stuff 2",
-    Delay = "Cray Dealay"
+    Delay = 0,
     OnButton1 = function()
         print("WOW!!!")
     end,
