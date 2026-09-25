@@ -21,7 +21,7 @@ local DEFAULTS = {
     Logo = "rbxassetid://6031075931",
     Button1Text = "[ YES ]",
     Button2Text = "[ NO ]",
-    Duration = 12,   -- auto-dismiss after N seconds (0 = never)
+    Duration = math.huge,   -- auto-dismiss after N seconds (0 = never)
     Delay = 0,       -- wait N seconds before showing (0 = instant)
     OnButton1 = function() print("[system.notify] YES selected") end,
     OnButton2 = function() print("[system.notify] NO selected") end,
