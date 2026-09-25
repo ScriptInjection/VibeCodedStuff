@@ -1,0 +1,39 @@
+Crazy Vibecoded Script v1 lul  +
+-------------------------------+
+
+
+
+One Script:
+
+local Notify = loadstring(game:HttpGet("https://raw.githubusercontent.com/ScriptInjection/VibeCodedStuff/refs/heads/RedNotify/Main"))()
+
+Notify:Show({
+    Title = "Crazy Title",
+    Description = "Crazy Stuff",
+    OnButton1 = function()
+        print("WTF")
+    end,
+    OnButton2 = function() end,
+})
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+Two Script(s):
+
+local Notify = loadstring(game:HttpGet("https://raw.githubusercontent.com/ScriptInjection/VibeCodedStuff/refs/heads/RedNotify/Main"))()
+
+Notify:Show({
+    Title = "CRAZIER title",
+    Description = "CRAZIER desc",
+    Button1Text = "Crazy Stuff 1",
+    Button2Text = "Craxy Stuff 2",
+    OnButton1 = function()
+        print("WOW!!!")
+    end,
+    OnButton2 = function()
+        print("CRAZY")
+    end,
+})
+
+
+ok goodbye
