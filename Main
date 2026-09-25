@@ -4,10 +4,7 @@
 --   Notify:Show({
 --       Title = "system.notify",
 --       Description = "A new event has been logged.",
---       Logo = "rbxassetid://6031075931",
---       Button1Text = "[ YES ]",
---       Button2Text = "[ NO ]",
---       Duration = 12,
+--       Delay = 3,  -- seconds to wait before showing (default 0)
 --       OnButton1 = function() print("YES") end,
 --       OnButton2 = function() print("NO") end,
 --   })
@@ -18,14 +15,14 @@ local Players = game:GetService("Players")
 
 local player = Players.LocalPlayer
 
--- Default config (overridden by Show())
 local DEFAULTS = {
     Title = "system.notify",
     Description = "A new event has been logged. Do you wish to proceed?",
     Logo = "rbxassetid://6031075931",
     Button1Text = "[ YES ]",
     Button2Text = "[ NO ]",
-    Duration = 12,
+    Duration = 12,   -- auto-dismiss after N seconds (0 = never)
+    Delay = 0,       -- wait N seconds before showing (0 = instant)
     OnButton1 = function() print("[system.notify] YES selected") end,
     OnButton2 = function() print("[system.notify] NO selected") end,
 }
@@ -51,7 +48,6 @@ local FONT = Enum.Font.Code
 local Notify = {}
 Notify.__index = Notify
 
--- Merge user config with defaults
 local function mergeConfig(userCfg)
     local cfg = {}
     for k, v in pairs(DEFAULTS) do
@@ -65,7 +61,6 @@ local function mergeConfig(userCfg)
     return cfg
 end
 
--- Safely call a callback (handles errors, non-functions)
 local function safeCall(fn)
     if type(fn) ~= "function" then return end
     local ok, err = pcall(fn)
@@ -74,15 +69,12 @@ local function safeCall(fn)
     end
 end
 
-function Notify:Show(userCfg)
-    local CONFIG = mergeConfig(userCfg)
-
-    -- Remove any existing notification
+-- Internal builder (runs after delay)
+local function buildNotification(CONFIG)
     if CoreGui:FindFirstChild("CustomNotification") then
         CoreGui.CustomNotification:Destroy()
     end
 
-    -- === GUI ===
     local gui = Instance.new("ScreenGui")
     gui.Name = "CustomNotification"
     gui.ResetOnSpawn = false
@@ -413,6 +405,19 @@ function Notify:Show(userCfg)
         Frame = frame,
         Dismiss = dismiss,
     }
+end
+
+function Notify:Show(userCfg)
+    local CONFIG = mergeConfig(userCfg)
+
+    -- Delay before showing (threaded so Show() doesn't block)
+    if CONFIG.Delay and CONFIG.Delay > 0 then
+        task.delay(CONFIG.Delay, function()
+            buildNotification(CONFIG)
+        end)
+    else
+        return buildNotification(CONFIG)
+    end
 end
 
 return Notify
