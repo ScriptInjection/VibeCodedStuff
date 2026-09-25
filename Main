@@ -1,0 +1,418 @@
+-- RedNotify.lua
+-- Usage:
+--   local Notify = loadstring(game:HttpGet("URL_TO_THIS_FILE"))()
+--   Notify:Show({
+--       Title = "system.notify",
+--       Description = "A new event has been logged.",
+--       Logo = "rbxassetid://6031075931",
+--       Button1Text = "[ YES ]",
+--       Button2Text = "[ NO ]",
+--       Duration = 12,
+--       OnButton1 = function() print("YES") end,
+--       OnButton2 = function() print("NO") end,
+--   })
+
+local CoreGui = game:GetService("CoreGui")
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+
+local player = Players.LocalPlayer
+
+-- Default config (overridden by Show())
+local DEFAULTS = {
+    Title = "system.notify",
+    Description = "A new event has been logged. Do you wish to proceed?",
+    Logo = "rbxassetid://6031075931",
+    Button1Text = "[ YES ]",
+    Button2Text = "[ NO ]",
+    Duration = 12,
+    OnButton1 = function() print("[system.notify] YES selected") end,
+    OnButton2 = function() print("[system.notify] NO selected") end,
+}
+
+local COLORS = {
+    Bg          = Color3.fromRGB(24, 24, 26),
+    BgDark      = Color3.fromRGB(16, 16, 18),
+    Border      = Color3.fromRGB(210, 45, 45),
+    BorderDim   = Color3.fromRGB(90, 25, 25),
+    TitleBar    = Color3.fromRGB(150, 25, 25),
+    TitleText   = Color3.fromRGB(245, 245, 245),
+    Text        = Color3.fromRGB(220, 220, 220),
+    TextDim     = Color3.fromRGB(140, 140, 140),
+    Accent      = Color3.fromRGB(230, 60, 60),
+    ButtonBg    = Color3.fromRGB(36, 36, 40),
+    ButtonHover = Color3.fromRGB(90, 25, 25),
+    ButtonPress = Color3.fromRGB(150, 35, 35),
+    Scanline    = Color3.fromRGB(0, 0, 0),
+}
+
+local FONT = Enum.Font.Code
+
+local Notify = {}
+Notify.__index = Notify
+
+-- Merge user config with defaults
+local function mergeConfig(userCfg)
+    local cfg = {}
+    for k, v in pairs(DEFAULTS) do
+        cfg[k] = v
+    end
+    if type(userCfg) == "table" then
+        for k, v in pairs(userCfg) do
+            cfg[k] = v
+        end
+    end
+    return cfg
+end
+
+-- Safely call a callback (handles errors, non-functions)
+local function safeCall(fn)
+    if type(fn) ~= "function" then return end
+    local ok, err = pcall(fn)
+    if not ok then
+        warn("[RedNotify] Callback error: " .. tostring(err))
+    end
+end
+
+function Notify:Show(userCfg)
+    local CONFIG = mergeConfig(userCfg)
+
+    -- Remove any existing notification
+    if CoreGui:FindFirstChild("CustomNotification") then
+        CoreGui.CustomNotification:Destroy()
+    end
+
+    -- === GUI ===
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "CustomNotification"
+    gui.ResetOnSpawn = false
+    gui.IgnoreGuiInset = true
+    gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    gui.Parent = CoreGui
+
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 440, 0, 170)
+    frame.Position = UDim2.new(1, 480, 0, 20)
+    frame.BackgroundColor3 = COLORS.Bg
+    frame.BorderSizePixel = 0
+    frame.ClipsDescendants = true
+    frame.Parent = gui
+
+    local outerStroke = Instance.new("UIStroke")
+    outerStroke.Color = COLORS.Border
+    outerStroke.Thickness = 2
+    outerStroke.Parent = frame
+
+    local innerFrame = Instance.new("Frame")
+    innerFrame.Size = UDim2.new(1, -6, 1, -6)
+    innerFrame.Position = UDim2.new(0, 3, 0, 3)
+    innerFrame.BackgroundColor3 = COLORS.Bg
+    innerFrame.BorderSizePixel = 0
+    innerFrame.Parent = frame
+
+    local innerStroke = Instance.new("UIStroke")
+    innerStroke.Color = COLORS.BorderDim
+    innerStroke.Thickness = 1
+    innerStroke.Parent = innerFrame
+
+    -- Title bar
+    local titleBar = Instance.new("Frame")
+    titleBar.Size = UDim2.new(1, 0, 0, 24)
+    titleBar.BackgroundColor3 = COLORS.TitleBar
+    titleBar.BorderSizePixel = 0
+    titleBar.ZIndex = 2
+    titleBar.Parent = frame
+
+    local titleGradient = Instance.new("UIGradient")
+    titleGradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(190, 35, 35)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(150, 25, 25)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(100, 18, 18)),
+    })
+    titleGradient.Parent = titleBar
+
+    local titleBarText = Instance.new("TextLabel")
+    titleBarText.Size = UDim2.new(1, -40, 1, 0)
+    titleBarText.Position = UDim2.new(0, 8, 0, 0)
+    titleBarText.BackgroundTransparency = 1
+    titleBarText.Font = FONT
+    titleBarText.TextSize = 14
+    titleBarText.TextColor3 = COLORS.TitleText
+    titleBarText.TextXAlignment = Enum.TextXAlignment.Left
+    titleBarText.Text = "> " .. CONFIG.Title
+    titleBarText.ZIndex = 3
+    titleBarText.Parent = titleBar
+
+    -- Window dots
+    local dotsHolder = Instance.new("Frame")
+    dotsHolder.Size = UDim2.new(0, 40, 1, 0)
+    dotsHolder.Position = UDim2.new(1, -46, 0, 0)
+    dotsHolder.BackgroundTransparency = 1
+    dotsHolder.ZIndex = 3
+    dotsHolder.Parent = titleBar
+
+    local dotsLayout = Instance.new("UIListLayout")
+    dotsLayout.FillDirection = Enum.FillDirection.Horizontal
+    dotsLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+    dotsLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+    dotsLayout.Padding = UDim.new(0, 4)
+    dotsLayout.Parent = dotsHolder
+
+    for i = 1, 3 do
+        local dot = Instance.new("Frame")
+        dot.Size = UDim2.new(0, 8, 0, 8)
+        dot.BackgroundColor3 = i == 3 and COLORS.Accent or Color3.fromRGB(80, 80, 80)
+        dot.BorderSizePixel = 0
+        dot.LayoutOrder = i
+        dot.Parent = dotsHolder
+
+        local dc = Instance.new("UICorner")
+        dc.CornerRadius = UDim.new(1, 0)
+        dc.Parent = dot
+    end
+
+    -- Blinking cursor
+    local cursor = Instance.new("TextLabel")
+    cursor.Size = UDim2.new(0, 10, 1, 0)
+    cursor.Position = UDim2.new(0, 130, 0, 0)
+    cursor.BackgroundTransparency = 1
+    cursor.Font = FONT
+    cursor.TextSize = 14
+    cursor.TextColor3 = COLORS.TitleText
+    cursor.Text = "_"
+    cursor.ZIndex = 3
+    cursor.Parent = titleBar
+
+    task.spawn(function()
+        while cursor.Parent do
+            cursor.Visible = not cursor.Visible
+            task.wait(0.5)
+        end
+    end)
+
+    -- Logo
+    local logoFrame = Instance.new("Frame")
+    logoFrame.Size = UDim2.new(0, 52, 0, 52)
+    logoFrame.Position = UDim2.new(0, 15, 0, 38)
+    logoFrame.BackgroundColor3 = COLORS.BgDark
+    logoFrame.BorderSizePixel = 0
+    logoFrame.ZIndex = 3
+    logoFrame.Parent = frame
+
+    local logoStroke = Instance.new("UIStroke")
+    logoStroke.Color = COLORS.Border
+    logoStroke.Thickness = 1
+    logoStroke.Parent = logoFrame
+
+    local function cornerAccent(pos, size)
+        local c = Instance.new("Frame")
+        c.Size = size
+        c.Position = pos
+        c.BackgroundColor3 = COLORS.Accent
+        c.BorderSizePixel = 0
+        c.ZIndex = 4
+        c.Parent = logoFrame
+        return c
+    end
+    cornerAccent(UDim2.new(0, -1, 0, -1), UDim2.new(0, 6, 0, 2))
+    cornerAccent(UDim2.new(0, -1, 0, -1), UDim2.new(0, 2, 0, 6))
+    cornerAccent(UDim2.new(1, -5, 0, -1), UDim2.new(0, 6, 0, 2))
+    cornerAccent(UDim2.new(1, -1, 0, -1), UDim2.new(0, 2, 0, 6))
+    cornerAccent(UDim2.new(0, -1, 1, -1), UDim2.new(0, 6, 0, 2))
+    cornerAccent(UDim2.new(0, -1, 1, -5), UDim2.new(0, 2, 0, 6))
+    cornerAccent(UDim2.new(1, -5, 1, -1), UDim2.new(0, 6, 0, 2))
+    cornerAccent(UDim2.new(1, -1, 1, -5), UDim2.new(0, 2, 0, 6))
+
+    local logo = Instance.new("ImageLabel")
+    logo.Size = UDim2.new(1, -10, 1, -10)
+    logo.Position = UDim2.new(0, 5, 0, 5)
+    logo.BackgroundTransparency = 1
+    logo.Image = CONFIG.Logo
+    logo.ImageColor3 = Color3.fromRGB(220, 220, 220)
+    logo.ZIndex = 3
+    logo.Parent = logoFrame
+
+    -- Description
+    local desc = Instance.new("TextLabel")
+    desc.Size = UDim2.new(1, -90, 0, 60)
+    desc.Position = UDim2.new(0, 80, 0, 38)
+    desc.BackgroundTransparency = 1
+    desc.Font = FONT
+    desc.TextSize = 14
+    desc.TextColor3 = COLORS.Text
+    desc.TextXAlignment = Enum.TextXAlignment.Left
+    desc.TextYAlignment = Enum.TextYAlignment.Top
+    desc.TextWrapped = true
+    desc.Text = CONFIG.Description
+    desc.ZIndex = 3
+    desc.Parent = frame
+
+    -- Status line
+    local statusLine = Instance.new("TextLabel")
+    statusLine.Size = UDim2.new(1, -30, 0, 14)
+    statusLine.Position = UDim2.new(0, 15, 1, -66)
+    statusLine.BackgroundTransparency = 1
+    statusLine.Font = FONT
+    statusLine.TextSize = 11
+    statusLine.TextColor3 = COLORS.TextDim
+    statusLine.TextXAlignment = Enum.TextXAlignment.Left
+    statusLine.Text = "[ awaiting user input... ]"
+    statusLine.ZIndex = 3
+    statusLine.Parent = frame
+
+    -- Buttons
+    local btnHolder = Instance.new("Frame")
+    btnHolder.Size = UDim2.new(1, -30, 0, 32)
+    btnHolder.Position = UDim2.new(0, 15, 1, -46)
+    btnHolder.BackgroundTransparency = 1
+    btnHolder.ZIndex = 3
+    btnHolder.Parent = frame
+
+    local btnLayout = Instance.new("UIListLayout")
+    btnLayout.FillDirection = Enum.FillDirection.Horizontal
+    btnLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+    btnLayout.Padding = UDim.new(0, 8)
+    btnLayout.Parent = btnHolder
+
+    local function makeButton(text, order)
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(0, 100, 1, 0)
+        btn.BackgroundColor3 = COLORS.ButtonBg
+        btn.BorderSizePixel = 0
+        btn.Font = FONT
+        btn.TextSize = 14
+        btn.TextColor3 = COLORS.Text
+        btn.Text = text
+        btn.LayoutOrder = order
+        btn.AutoButtonColor = false
+        btn.ZIndex = 3
+        btn.Parent = btnHolder
+
+        local s = Instance.new("UIStroke")
+        s.Color = COLORS.BorderDim
+        s.Thickness = 1
+        s.Parent = btn
+
+        local accent = Instance.new("Frame")
+        accent.Size = UDim2.new(0, 3, 1, 0)
+        accent.BackgroundColor3 = COLORS.Border
+        accent.BorderSizePixel = 0
+        accent.ZIndex = 4
+        accent.Parent = btn
+
+        btn.MouseEnter:Connect(function()
+            TweenService:Create(btn, TweenInfo.new(0.12), {BackgroundColor3 = COLORS.ButtonHover}):Play()
+            s.Color = COLORS.Border
+        end)
+        btn.MouseLeave:Connect(function()
+            TweenService:Create(btn, TweenInfo.new(0.12), {BackgroundColor3 = COLORS.ButtonBg}):Play()
+            s.Color = COLORS.BorderDim
+        end)
+        btn.MouseButton1Down:Connect(function()
+            btn.BackgroundColor3 = COLORS.ButtonPress
+        end)
+        btn.MouseButton1Up:Connect(function()
+            btn.BackgroundColor3 = COLORS.ButtonHover
+        end)
+
+        return btn
+    end
+
+    local btn1 = makeButton(CONFIG.Button1Text, 1)
+    local btn2 = makeButton(CONFIG.Button2Text, 2)
+
+    -- Scanlines
+    local scanlines = Instance.new("Frame")
+    scanlines.Size = UDim2.new(1, 0, 1, 0)
+    scanlines.BackgroundTransparency = 1
+    scanlines.ZIndex = 5
+    scanlines.ClipsDescendants = true
+    scanlines.Parent = frame
+
+    local scanCount = 20
+    for i = 1, scanCount do
+        local line = Instance.new("Frame")
+        line.Size = UDim2.new(1, 0, 0, 1)
+        line.Position = UDim2.new(0, 0, 0, (i - 1) * (100 / scanCount))
+        line.BackgroundColor3 = COLORS.Scanline
+        line.BackgroundTransparency = 0.85
+        line.BorderSizePixel = 0
+        line.ZIndex = 5
+        line.Parent = scanlines
+    end
+
+    -- Moving scan bar
+    local scanBar = Instance.new("Frame")
+    scanBar.Size = UDim2.new(1, 0, 0, 30)
+    scanBar.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    scanBar.BackgroundTransparency = 0.94
+    scanBar.BorderSizePixel = 0
+    scanBar.ZIndex = 6
+    scanBar.Parent = frame
+
+    local scanBarGradient = Instance.new("UIGradient")
+    scanBarGradient.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 1),
+        NumberSequenceKeypoint.new(0.5, 0.6),
+        NumberSequenceKeypoint.new(1, 1),
+    })
+    scanBarGradient.Rotation = 90
+    scanBarGradient.Parent = scanBar
+
+    task.spawn(function()
+        while frame.Parent do
+            scanBar.Position = UDim2.new(0, 0, 0, -30)
+            local tween = TweenService:Create(scanBar, TweenInfo.new(3.5, Enum.EasingStyle.Linear), {
+                Position = UDim2.new(0, 0, 1, 0),
+            })
+            tween:Play()
+            tween.Completed:Wait()
+            task.wait(1.5)
+        end
+    end)
+
+    -- Slide in
+    local slideIn = TweenService:Create(frame, TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+        Position = UDim2.new(1, -460, 0, 20),
+    })
+    slideIn:Play()
+
+    -- Dismiss
+    local dismissed = false
+    local function dismiss()
+        if dismissed then return end
+        dismissed = true
+        if scanBar then scanBar:Destroy() end
+        local slideOut = TweenService:Create(frame, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
+            Position = UDim2.new(1, 480, 0, 20),
+        })
+        slideOut:Play()
+        slideOut.Completed:Connect(function()
+            gui:Destroy()
+        end)
+    end
+
+    btn1.MouseButton1Click:Connect(function()
+        safeCall(CONFIG.OnButton1)
+        dismiss()
+    end)
+
+    btn2.MouseButton1Click:Connect(function()
+        safeCall(CONFIG.OnButton2)
+        dismiss()
+    end)
+
+    if CONFIG.Duration and CONFIG.Duration > 0 then
+        task.delay(CONFIG.Duration, function()
+            if gui.Parent then dismiss() end
+        end)
+    end
+
+    return {
+        Gui = gui,
+        Frame = frame,
+        Dismiss = dismiss,
+    }
+end
+
+return Notify
