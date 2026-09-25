@@ -8,32 +8,19 @@ One Script:
 local Notify = loadstring(game:HttpGet("https://raw.githubusercontent.com/ScriptInjection/VibeCodedStuff/refs/heads/RedNotify/Main"))()
 
 Notify:Show({
-    Title = "Crazy Title",
-    Description = "Crazy Stuff",
-    OnButton1 = function()
-        print("WTF")
-    end,
-    OnButton2 = function() end,
+    Title = "system.notify",
+    Description = "A new event has been logged. Do you wish to proceed?",
+    Logo = "rbxassetid://6031075931",
+    Button1Text = "[ YES ]",
+    Button2Text = "[ NO ]",
+    Duration = 12,
+    OnButton1 = function() print("YES") end,
+    OnButton2 = function() print("NO") end,
 })
+
+
+
 
 -------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-Two Script(s):
-
-local Notify = loadstring(game:HttpGet("https://raw.githubusercontent.com/ScriptInjection/VibeCodedStuff/refs/heads/RedNotify/Main"))()
-
-Notify:Show({
-    Title = "CRAZIER title",
-    Description = "CRAZIER desc",
-    Button1Text = "Crazy Stuff 1",
-    Button2Text = "Craxy Stuff 2",
-    OnButton1 = function()
-        print("WOW!!!")
-    end,
-    OnButton2 = function()
-        print("CRAZY")
-    end,
-})
-
-
-ok goodbye
+ok bye
